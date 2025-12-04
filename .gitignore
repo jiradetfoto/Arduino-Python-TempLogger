@@ -1,0 +1,13 @@
+# Ignore compiled Arduino files
+*.hex
+*.elf
+*.bin
+*.o
+*.d
+
+# Ignore Python specific files
+*.pyc
+__pycache__/
+
+# Ignore Data files (since they change often)
+/data/*.csv
