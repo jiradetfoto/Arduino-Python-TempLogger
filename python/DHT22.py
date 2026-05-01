@@ -5,19 +5,21 @@ import datetime
 import csv
 import os
 import threading
+import pystray
+from PIL import Image
+import sys
 
-# --- ตั้งค่า ---
+# --- ตั้งค่าเดิม ---
 BAUD_RATE = 9600
 CSV_FILENAME = 'sensor_log_1hour.csv'
+ICON_FILE = 'icons8.ico' # ชื่อไฟล์ไอคอน
 
 stop_event = threading.Event()
 
-# ฟังก์ชันหา Port อัตโนมัติ
+# ฟังก์ชันเดิม(คงไว้เหมือนเดิม)
 def find_arduino_port():
-    print("Scanning ports...")
     ports = list(serial.tools.list_ports.comports())
     arduino_identifiers = ["Arduino", "CH340", "USB Serial", "FTDI", "CP210"]
-    
     for p in ports:
         for identifier in arduino_identifiers:
             if identifier in p.description:
@@ -29,7 +31,6 @@ def check_and_write_header():
         try:
             with open(CSV_FILENAME, 'w', newline='', encoding='utf-8') as f:
                 csv.writer(f).writerow(['Timestamp', 'Avg_Temperature_C', 'Avg_Humidity_Perc'])
-            print(f"Created new log file: {CSV_FILENAME}")
         except IOError as e:
             print(f"ERROR: {e}")
 
@@ -41,7 +42,6 @@ def append_to_csv(data_row):
     except IOError as e:
         print(f"ERROR: Write failed. {e}")
 
-# Thread ส่ง Heartbeat 'P' ทุก 5 วินาที
 def send_heartbeat(ser):
     while not stop_event.is_set():
         try:
@@ -50,71 +50,60 @@ def send_heartbeat(ser):
         except:
             break
 
-def main():
+# ฟังก์ชันหลักที่รัน Logic ของ Arduino (แยกออกมาเป็น Thread)
+def sensor_logic():
     check_and_write_header()
-    
-    print("🚀 System started. Press Ctrl+C to stop.")
-    
     while not stop_event.is_set():
         target_port = find_arduino_port()
-        
         if target_port is None:
-            print("❌ Arduino not found! Retrying in 5 seconds... (Ctrl+C to quit)")
-            try:
-                time.sleep(5)
-            except KeyboardInterrupt:
-                break
+            time.sleep(5)
             continue
-
-        print(f"✅ Connecting to: {target_port} ...")
-
         try:
             with serial.Serial(target_port, BAUD_RATE, timeout=2) as ser:
-                time.sleep(2) # รอ Arduino Reset
-                
-                # ส่ง 'S' เริ่มต้นเพื่อให้บอร์ดรู้ว่า PC พร้อมแล้ว
+                time.sleep(2)
                 ser.write(b'S')
-                print("✨ Connected! Monitoring for 60-minute average data...")
-                
-                # สร้างและเริ่ม Heartbeat Thread สำหรับการเชื่อมต่อครั้งนี้
-                # ใช้ daemon=True เพื่อให้ thread จบพร้อมโปรแกรมหลัก
                 hb_thread = threading.Thread(target=send_heartbeat, args=(ser,), daemon=True)
                 hb_thread.start()
-
                 while not stop_event.is_set():
                     try:
                         line = ser.readline().decode('utf-8', errors='ignore').strip()
                     except (serial.SerialException, OSError):
-                        print("\n⚠️ Connection lost. Attempting to reconnect...")
                         break
-
-                    if line:
-                        if line.startswith("AVG_T:") and ",AVG_H:" in line:
-                            timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                            try:
-                                parts = line.split(',')
-                                t_val = float(parts[0].split(':')[1])
-                                h_val = float(parts[1].split(':')[1])
-
-                                print(f"[{timestamp}] 📥 Received: T={t_val:.2f}C, H={h_val:.2f}%")
-                                append_to_csv([timestamp, t_val, h_val])
-                            except (ValueError, IndexError):
-                                print(f"⚠️ Malformed data: {line}")
-                        else:
-                            # แสดงข้อความอื่นๆ จากบอร์ด (เช่น ข้อความ Debug)
-                            if line != 'P': # ไม่แสดงค่า heartbeat
-                                print(f"[Device]: {line}")
-
-        except serial.SerialException as e:
-            print(f"❌ Could not open port: {e}")
+                    if line and line.startswith("AVG_T:"):
+                        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        try:
+                            parts = line.split(',')
+                            t_val = float(parts[0].split(':')[1])
+                            h_val = float(parts[1].split(':')[1])
+                            append_to_csv([timestamp, t_val, h_val])
+                        except:
+                            pass
+        except:
             time.sleep(2)
-        except KeyboardInterrupt:
-            print("\n🛑 Stopping system...")
-            stop_event.set()
-            break
-        except Exception as e:
-            print(f"Unexpected error: {e}")
-            time.sleep(2)
+
+# --- ส่วนของ System Tray ---
+def on_quit(icon, item):
+    stop_event.set() # สั่งหยุด Thread ทั้งหมด
+    icon.stop() # ปิดไอคอน
+    sys.exit()
+
+def setup_tray():
+    # โหลดไอคอน
+    try:
+        image = Image.open(ICON_FILE)
+    except:
+        # ถ้าไม่มีไฟล์ไอคอน ให้สร้างสี่เหลี่ยมสีเขียวขึ้นมาแทน
+        image = Image.new('RGB', (64, 64), color=(0, 128, 0))
+
+    menu = (pystray.MenuItem('Exit', on_quit),)
+    icon = pystray.Icon("DHT22_Monitor", image, "DHT22 Data Logger", menu)
+    
+    # รันเซนเซอร์ในเบื้องหลัง
+    thread = threading.Thread(target=sensor_logic, daemon=True)
+    thread.start()
+    
+    # รัน Tray (ฟังก์ชันนี้จะ Block การทำงานจนกว่าจะปิด Tray)
+    icon.run()
 
 if __name__ == "__main__":
-    main()
+    setup_tray()
