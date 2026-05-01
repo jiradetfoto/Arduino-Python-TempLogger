@@ -8,11 +8,14 @@ import threading
 import pystray
 from PIL import Image
 import sys
+import sqlite3
 
 # --- ตั้งค่าเดิม ---
 BAUD_RATE = 9600
-CSV_FILENAME = 'sensor_log_1hour.csv'
-ICON_FILE = 'icons8.ico' # ชื่อไฟล์ไอคอน
+script_dir = os.path.dirname(os.path.abspath(__file__))
+DB_FILENAME = os.path.join(script_dir, 'sensor_log.db')
+CSV_FILENAME = os.path.join(script_dir, 'sensor_log_1hour.csv')
+ICON_FILE = os.path.join(script_dir, 'icons8.ico') # ชื่อไฟล์ไอคอน
 
 stop_event = threading.Event()
 
@@ -26,21 +29,66 @@ def find_arduino_port():
                 return p.device
     return None
 
-def check_and_write_header():
-    if not os.path.isfile(CSV_FILENAME):
-        try:
-            with open(CSV_FILENAME, 'w', newline='', encoding='utf-8') as f:
-                csv.writer(f).writerow(['Timestamp', 'Avg_Temperature_C', 'Avg_Humidity_Perc'])
-        except IOError as e:
-            print(f"ERROR: {e}")
-
-def append_to_csv(data_row):
+def init_db():
     try:
-        with open(CSV_FILENAME, 'a', newline='', encoding='utf-8') as f:
-            csv.writer(f).writerow(data_row)
-            f.flush()
-    except IOError as e:
-        print(f"ERROR: Write failed. {e}")
+        conn = sqlite3.connect(DB_FILENAME)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS sensor_data (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                temperature REAL NOT NULL,
+                humidity REAL NOT NULL
+            )
+        ''')
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"Database Initialization Error: {e}")
+
+def migrate_csv_to_sqlite():
+    if os.path.isfile(CSV_FILENAME):
+        print(f"📦 Found existing CSV file: {os.path.basename(CSV_FILENAME)}. Starting migration...")
+        try:
+            conn = sqlite3.connect(DB_FILENAME)
+            cursor = conn.cursor()
+            
+            with open(CSV_FILENAME, 'r', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                header = next(reader, None) # Skip header
+                count = 0
+                for row in reader:
+                    if len(row) == 3:
+                        try:
+                            # row: [timestamp, temp, humid]
+                            cursor.execute('''
+                                INSERT INTO sensor_data (timestamp, temperature, humidity)
+                                VALUES (?, ?, ?)
+                            ''', (row[0], float(row[1]), float(row[2])))
+                            count += 1
+                        except ValueError:
+                            pass # Skip invalid rows
+            conn.commit()
+            conn.close()
+            
+            backup_filename = CSV_FILENAME.replace('.csv', '_backup.csv')
+            os.rename(CSV_FILENAME, backup_filename)
+            print(f"✅ Migration successful! {count} records imported.")
+        except Exception as e:
+            print(f"❌ Migration failed: {e}")
+
+def insert_to_db(timestamp, temperature, humidity):
+    try:
+        conn = sqlite3.connect(DB_FILENAME)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO sensor_data (timestamp, temperature, humidity)
+            VALUES (?, ?, ?)
+        ''', (timestamp, temperature, humidity))
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"ERROR: Database write failed. {e}")
 
 def send_heartbeat(ser):
     while not stop_event.is_set():
@@ -52,7 +100,8 @@ def send_heartbeat(ser):
 
 # ฟังก์ชันหลักที่รัน Logic ของ Arduino (แยกออกมาเป็น Thread)
 def sensor_logic():
-    check_and_write_header()
+    init_db()
+    migrate_csv_to_sqlite()
     while not stop_event.is_set():
         target_port = find_arduino_port()
         if target_port is None:
@@ -75,7 +124,7 @@ def sensor_logic():
                             parts = line.split(',')
                             t_val = float(parts[0].split(':')[1])
                             h_val = float(parts[1].split(':')[1])
-                            append_to_csv([timestamp, t_val, h_val])
+                            insert_to_db(timestamp, t_val, h_val)
                         except:
                             pass
         except:
