@@ -10,18 +10,11 @@ const int LCD_ADDRESS = 0x27; // หรือ 0x3F ตามรุ่นจอ
 // --- Config เวลา ---
 // อ่านทุก 2.5 วินาที (เพื่อให้ DHT22 อ่านได้แม่นยำและเสถียรที่สุด)
 const unsigned long SAMPLE_INTERVAL_MS = 2500; 
-// 1 ชั่วโมง (3600 วิ) / 2.5 วิ = 1440 ตัวอย่าง
-const int SAMPLES_PER_HOUR = 1440;    
 const unsigned long HEARTBEAT_TIMEOUT = 12000; // 12 วินาที
 
 // --- ออบเจ็กต์ ---
 DHT dht(DHTPIN, DHTTYPE);
 LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2);
-
-// --- ตัวแปรคำนวณ ---
-double tempSum = 0.0;
-double humidSum = 0.0;
-unsigned long sampleCount = 0; // นับจำนวนที่อ่านได้จริง
 
 float currentT = NAN;
 float currentH = NAN;
@@ -34,9 +27,9 @@ bool isTemplatePrinted = false;
 
 // --- ส่งข้อมูลไป PC ---
 void sendToPC(float t, float h) {
-  Serial.print("AVG_T:");
+  Serial.print("RAW_T:");
   Serial.print(t, 1);
-  Serial.print(",AVG_H:");
+  Serial.print(",RAW_H:");
   Serial.println(h, 1);
 }
 
@@ -104,9 +97,6 @@ void setup() {
   if (!isnan(t) && !isnan(h)) {
     currentT = t;
     currentH = h;
-    tempSum += t;
-    humidSum += h;
-    sampleCount = 1;
     displayCurrentOnLCD(t, h);
   } else {
     displayCurrentOnLCD(NAN, NAN);
@@ -134,29 +124,9 @@ void loop() {
     currentH = h;
     displayCurrentOnLCD(t, h);
 
-    // 2. สะสมค่า
-    tempSum += t;
-    humidSum += h;
-    sampleCount++;
-
-    // 3. ครบ 1 ชั่วโมง (1440 ตัวอย่าง)
-    if (sampleCount >= SAMPLES_PER_HOUR) {
-      
-      // [SAFETY GUARD] ป้องกันหารด้วยศูนย์
-      if (sampleCount > 0) {
-        // [LOGIC] หารด้วย sampleCount เพื่อค่าเฉลี่ยที่ถูกต้องที่สุด
-        float avgT = (float)(tempSum / sampleCount);
-        float avgH = (float)(humidSum / sampleCount);
-        
-        if (isLoggingMode) {
-          sendToPC(avgT, avgH);
-        }
-      }
-
-      // [RESET] รีเซ็ตทุกอย่างเริ่มรอบใหม่
-      tempSum = 0.0;
-      humidSum = 0.0;
-      sampleCount = 0;
+    // 2. ส่งข้อมูลแบบ Real-time ไปที่ PC
+    if (isLoggingMode) {
+      sendToPC(t, h);
     }
   }
 }

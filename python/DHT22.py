@@ -9,15 +9,91 @@ import pystray
 from PIL import Image
 import sys
 import sqlite3
+from flask import Flask, render_template, jsonify
+import logging
 
-# --- ตั้งค่าเดิม ---
+# --- ฟังก์ชันจัดการ Path สำหรับ PyInstaller ---
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        # ถ้าเป็นไฟล์ .exe (Frozen) ให้ใช้ตำแหน่งที่ไฟล์ .exe ตั้งอยู่
+        # เพื่อให้หาโฟลเดอร์ templates และฐานข้อมูลที่อยู่นอกไฟล์ .exe เจอ
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+script_dir = get_base_path()
 BAUD_RATE = 9600
-script_dir = os.path.dirname(os.path.abspath(__file__))
 DB_FILENAME = os.path.join(script_dir, 'sensor_log.db')
-CSV_FILENAME = os.path.join(script_dir, 'sensor_log_1hour.csv')
 ICON_FILE = os.path.join(script_dir, 'icons8.ico') # ชื่อไฟล์ไอคอน
 
 stop_event = threading.Event()
+
+buffer_lock = threading.Lock()
+data_buffer = []
+
+app = Flask(__name__, template_folder=os.path.join(script_dir, 'templates'))
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/api/data')
+def get_data():
+    try:
+        conn = sqlite3.connect(DB_FILENAME)
+        cursor = conn.cursor()
+        # ดึง 24 ตัวอย่างล่าสุด (เช่น 24 ชั่วโมง)
+        cursor.execute("SELECT timestamp, temperature, humidity FROM sensor_data ORDER BY id DESC LIMIT 24")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        # คืนค่าแบบเรียงจากเก่าไปใหม่ (ASC) เพื่อวาดกราฟซ้ายไปขวา
+        data = [{'timestamp': r[0], 'temperature': r[1], 'humidity': r[2]} for r in reversed(rows)]
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/stats')
+def get_stats():
+    try:
+        conn = sqlite3.connect(DB_FILENAME)
+        cursor = conn.cursor()
+        
+        now = datetime.datetime.now()
+        today_str = now.strftime('%Y-%m-%d') + '%'
+        month_str = now.strftime('%Y-%m') + '%'
+        
+        stats = {}
+        
+        def fetch_max_min(prefix):
+            if prefix:
+                cursor.execute("SELECT timestamp, temperature FROM sensor_data WHERE timestamp LIKE ? ORDER BY temperature DESC LIMIT 1", (prefix,))
+                max_row = cursor.fetchone()
+                cursor.execute("SELECT timestamp, temperature FROM sensor_data WHERE timestamp LIKE ? ORDER BY temperature ASC LIMIT 1", (prefix,))
+                min_row = cursor.fetchone()
+            else:
+                cursor.execute("SELECT timestamp, temperature FROM sensor_data ORDER BY temperature DESC LIMIT 1")
+                max_row = cursor.fetchone()
+                cursor.execute("SELECT timestamp, temperature FROM sensor_data ORDER BY temperature ASC LIMIT 1")
+                min_row = cursor.fetchone()
+            
+            return {
+                'max': {'temp': max_row[1], 'time': max_row[0]} if max_row else None,
+                'min': {'temp': min_row[1], 'time': min_row[0]} if min_row else None
+            }
+
+        stats['today'] = fetch_max_min(today_str)
+        stats['month'] = fetch_max_min(month_str)
+        stats['all_time'] = fetch_max_min(None)
+        
+        conn.close()
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def run_flask():
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR) # ปิด log ของ Flask ไม่ให้รก terminal
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 
 # ฟังก์ชันเดิม(คงไว้เหมือนเดิม)
 def find_arduino_port():
@@ -46,36 +122,7 @@ def init_db():
     except sqlite3.Error as e:
         print(f"Database Initialization Error: {e}")
 
-def migrate_csv_to_sqlite():
-    if os.path.isfile(CSV_FILENAME):
-        print(f"📦 Found existing CSV file: {os.path.basename(CSV_FILENAME)}. Starting migration...")
-        try:
-            conn = sqlite3.connect(DB_FILENAME)
-            cursor = conn.cursor()
-            
-            with open(CSV_FILENAME, 'r', encoding='utf-8') as f:
-                reader = csv.reader(f)
-                header = next(reader, None) # Skip header
-                count = 0
-                for row in reader:
-                    if len(row) == 3:
-                        try:
-                            # row: [timestamp, temp, humid]
-                            cursor.execute('''
-                                INSERT INTO sensor_data (timestamp, temperature, humidity)
-                                VALUES (?, ?, ?)
-                            ''', (row[0], float(row[1]), float(row[2])))
-                            count += 1
-                        except ValueError:
-                            pass # Skip invalid rows
-            conn.commit()
-            conn.close()
-            
-            backup_filename = CSV_FILENAME.replace('.csv', '_backup.csv')
-            os.rename(CSV_FILENAME, backup_filename)
-            print(f"✅ Migration successful! {count} records imported.")
-        except Exception as e:
-            print(f"❌ Migration failed: {e}")
+
 
 def insert_to_db(timestamp, temperature, humidity):
     try:
@@ -90,6 +137,38 @@ def insert_to_db(timestamp, temperature, humidity):
     except sqlite3.Error as e:
         print(f"ERROR: Database write failed. {e}")
 
+def average_and_save_worker():
+    while not stop_event.is_set():
+        # คำนวณเวลาวินาทีที่เหลือจนกว่าจะถึง "ต้นชั่วโมง" ถัดไป (เช่น 10:00:00)
+        now = datetime.datetime.now()
+        next_hour = (now + datetime.timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
+        seconds_to_wait = int((next_hour - now).total_seconds())
+        
+        # รอจนกว่าจะถึงต้นชั่วโมง (เช็คทีละ 1 วินาที เพื่อให้กดปิดโปรแกรมได้ทันที)
+        for i in range(seconds_to_wait):
+            if stop_event.is_set():
+                return
+            
+            # ปริ้นสถานะทุกๆ 1 นาที เพื่อให้รู้ว่าโปรแกรมยังทำงานอยู่
+            if (seconds_to_wait - i) % 60 == 0 or i == 0:
+                with buffer_lock:
+                    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ⏳ Next save in: {seconds_to_wait - i}s | Buffer size: {len(data_buffer)} samples")
+            
+            time.sleep(1)
+            
+        with buffer_lock:
+            if len(data_buffer) > 0:
+                avg_t = sum(item[0] for item in data_buffer) / len(data_buffer)
+                avg_h = sum(item[1] for item in data_buffer) / len(data_buffer)
+                
+                # ใช้เวลาต้นชั่วโมงนั้นๆ เป็น Timestamp ให้ตรงเป๊ะ (เช่น 10:00:00)
+                timestamp = next_hour.strftime('%Y-%m-%d %H:00:00')
+                
+                print(f"[{timestamp}] 📊 Hourly Average: T={avg_t:.2f}C, H={avg_h:.2f}% (from {len(data_buffer)} samples)")
+                insert_to_db(timestamp, avg_t, avg_h)
+                
+                data_buffer.clear()
+
 def send_heartbeat(ser):
     while not stop_event.is_set():
         try:
@@ -101,7 +180,6 @@ def send_heartbeat(ser):
 # ฟังก์ชันหลักที่รัน Logic ของ Arduino (แยกออกมาเป็น Thread)
 def sensor_logic():
     init_db()
-    migrate_csv_to_sqlite()
     while not stop_event.is_set():
         target_port = find_arduino_port()
         if target_port is None:
@@ -118,13 +196,17 @@ def sensor_logic():
                         line = ser.readline().decode('utf-8', errors='ignore').strip()
                     except (serial.SerialException, OSError):
                         break
-                    if line and line.startswith("AVG_T:"):
-                        timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    if line and line.startswith("RAW_T:"):
                         try:
                             parts = line.split(',')
                             t_val = float(parts[0].split(':')[1])
                             h_val = float(parts[1].split(':')[1])
-                            insert_to_db(timestamp, t_val, h_val)
+                            
+                            with buffer_lock:
+                                data_buffer.append((t_val, h_val))
+                                # ปริ้นทุกๆ 100 samples เพื่อยืนยันว่าข้อมูลเข้า (ประมาณทุก 4 นาที)
+                                if len(data_buffer) % 100 == 0:
+                                    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ✅ Received 100 new samples from Arduino.")
                         except:
                             pass
         except:
@@ -150,6 +232,14 @@ def setup_tray():
     # รันเซนเซอร์ในเบื้องหลัง
     thread = threading.Thread(target=sensor_logic, daemon=True)
     thread.start()
+    
+    # รันตัวคำนวณค่าเฉลี่ย
+    avg_thread = threading.Thread(target=average_and_save_worker, daemon=True)
+    avg_thread.start()
+    
+    # รัน Web Dashboard Server
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
     
     # รัน Tray (ฟังก์ชันนี้จะ Block การทำงานจนกว่าจะปิด Tray)
     icon.run()
