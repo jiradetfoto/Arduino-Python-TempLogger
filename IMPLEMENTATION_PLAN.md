@@ -13,7 +13,19 @@
 - `arduino/sensor_logging.ino` *(ไม่ต้องแก้ไข)*
 - `python/DHT22.py` *(แก้ไข: เพิ่มระบบ Thread สำหรับรัน Web Server (Flask) พร้อมกับระบบเดิม)*
 - `python/sensor_log.db` *(ฐานข้อมูล SQLite)*
-- `python/templates/index.html` *(ไฟล์ใหม่: หน้าตาของ Web Dashboard)*
+- `python/templates/index.html` *(ไม่ต้องแก้ไข)*
+
+## Phase 4: LINE Notify Integration (New)
+- **Features:**
+  - ส่งการแจ้งเตือนเข้ามือถือผ่าน LINE เมื่ออุณหภูมิสูงเกินค่าที่กำหนด (Threshold)
+  - มีระบบป้องกันการส่งข้อความซ้ำ (Cooldown) เพื่อไม่ให้รบกวนผู้ใช้มากเกินไป
+  - แจ้งเตือนเมื่อสถานะการเชื่อมต่อกับ Arduino ขาดหายไป (Offline Alert)
+- **Tech Stack Update:**
+  - **Python Library:** `requests` (สำหรับเรียกใช้งาน API ของ LINE)
+- **Configuration Required:**
+  - `LINE_TOKEN`: รหัสเข้าใช้งาน LINE Notify
+  - `MAX_TEMP_THRESHOLD`: ค่าอุณหภูมิสูงสุดที่อนุญาตก่อนจะแจ้งเตือน
+  - `NOTIFY_COOLDOWN_MINS`: ระยะเวลาพักการแจ้งเตือน (นาที)
 
 ## Tech stack
 - **Backend Language:** Python 3 (รวมการอ่าน Hardware และรัน Web API ด้วยไลบรารี `Flask`)
@@ -22,3 +34,4 @@
   - **CSS Framework:** Tailwind CSS (โหลดผ่าน CDN เพื่อความง่าย, สอดคล้องกับ Priority Rule)
   - **Graph Library:** Chart.js (สำหรับวาดกราฟแบบ Interactive)
   - **Structure:** HTML5, Vanilla JS
+
