@@ -29,12 +29,30 @@ stop_event = threading.Event()
 
 buffer_lock = threading.Lock()
 data_buffer = []
+rolling_buffer = []
 
 app = Flask(__name__, template_folder=os.path.join(script_dir, 'templates'))
 
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/api/current')
+def get_current():
+    try:
+        with buffer_lock:
+            if not rolling_buffer:
+                return jsonify({'temperature': None, 'humidity': None, 'timestamp': None})
+            
+            avg_t = sum(item[1] for item in rolling_buffer) / len(rolling_buffer)
+            avg_h = sum(item[2] for item in rolling_buffer) / len(rolling_buffer)
+            return jsonify({
+                'temperature': avg_t, 
+                'humidity': avg_h, 
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/data')
 def get_data():
@@ -204,6 +222,13 @@ def sensor_logic():
                             
                             with buffer_lock:
                                 data_buffer.append((t_val, h_val))
+                                
+                                current_time = time.time()
+                                rolling_buffer.append((current_time, t_val, h_val))
+                                # จำกัดข้อมูลให้เหลือแค่ 10 นาทีล่าสุด (600 วินาที)
+                                while rolling_buffer and current_time - rolling_buffer[0][0] > 600:
+                                    rolling_buffer.pop(0)
+
                                 # ปริ้นทุกๆ 100 samples เพื่อยืนยันว่าข้อมูลเข้า (ประมาณทุก 4 นาที)
                                 if len(data_buffer) % 100 == 0:
                                     print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ✅ Received 100 new samples from Arduino.")

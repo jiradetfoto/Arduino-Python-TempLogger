@@ -31,17 +31,17 @@
         <!-- Header Section -->
         <header class="glass-panel p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
-                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">Environment Dashboard</h1>
-                <p class="text-gray-400 mt-1">Real-time room temperature and humidity tracking</p>
+                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">แดชบอร์ดสภาพแวดล้อม</h1>
+                <p class="text-gray-400 mt-1">ติดตามอุณหภูมิและความชื้นแบบเรียลไทม์</p>
             </div>
             <div class="text-left md:text-right bg-gray-800/50 px-4 py-2 rounded-xl border border-gray-700/50">
-                <div class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">System Status</div>
+                <div class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">สถานะระบบ</div>
                 <div class="flex items-center space-x-2 text-emerald-400 font-medium">
                     <span class="relative flex h-3 w-3">
                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
                     </span>
-                    <span>Live Logging</span>
+                    <span>กำลังบันทึกข้อมูล</span>
                 </div>
             </div>
         </header>
@@ -52,20 +52,20 @@
                 <div class="absolute -right-6 -top-6 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-all duration-500"></div>
                 <div class="text-gray-400 font-medium mb-1 flex items-center gap-2">
                     <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                    Latest Temperature
+                    อุณหภูมิปัจจุบัน (เฉลี่ย 10 นาที)
                 </div>
                 <div class="text-5xl font-bold text-white drop-shadow-md" id="current-temp">-- <span class="text-2xl text-blue-400">°C</span></div>
-                <div class="text-xs text-gray-500 mt-2" id="temp-time">Waiting for data...</div>
+                <div class="text-xs text-gray-500 mt-2" id="temp-time">รอข้อมูล...</div>
             </div>
             
             <div class="glass-panel p-6 rounded-2xl flex flex-col justify-center relative overflow-hidden group">
                 <div class="absolute -right-6 -top-6 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all duration-500"></div>
                 <div class="text-gray-400 font-medium mb-1 flex items-center gap-2">
                     <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
-                    Latest Humidity
+                    ความชื้นปัจจุบัน (เฉลี่ย 10 นาที)
                 </div>
                 <div class="text-5xl font-bold text-white drop-shadow-md" id="current-humid">-- <span class="text-2xl text-emerald-400">%</span></div>
-                <div class="text-xs text-gray-500 mt-2" id="humid-time">Waiting for data...</div>
+                <div class="text-xs text-gray-500 mt-2" id="humid-time">รอข้อมูล...</div>
             </div>
         </div>
 
@@ -73,15 +73,15 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- Today Stats -->
             <div class="glass-panel p-5 rounded-2xl">
-                <h3 class="text-sm text-gray-400 font-semibold uppercase tracking-wider mb-3">Today's Extremes</h3>
+                <h3 class="text-sm text-gray-400 font-semibold uppercase tracking-wider mb-3">สถิติสูงสุด/ต่ำสุดของวันนี้</h3>
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-gray-300">Max Temp:</span>
+                    <span class="text-gray-300">อุณหภูมิสูงสุด:</span>
                     <span class="text-blue-400 font-bold" id="stat-today-max-temp">--°C</span>
                 </div>
                 <div class="text-xs text-gray-500 text-right mb-3" id="stat-today-max-time">--:--</div>
                 
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-gray-300">Min Temp:</span>
+                    <span class="text-gray-300">อุณหภูมิต่ำสุด:</span>
                     <span class="text-blue-400 font-bold" id="stat-today-min-temp">--°C</span>
                 </div>
                 <div class="text-xs text-gray-500 text-right" id="stat-today-min-time">--:--</div>
@@ -89,15 +89,15 @@
 
             <!-- Month Stats -->
             <div class="glass-panel p-5 rounded-2xl">
-                <h3 class="text-sm text-gray-400 font-semibold uppercase tracking-wider mb-3">This Month</h3>
+                <h3 class="text-sm text-gray-400 font-semibold uppercase tracking-wider mb-3">สถิติเดือนนี้</h3>
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-gray-300">Max Temp:</span>
+                    <span class="text-gray-300">อุณหภูมิสูงสุด:</span>
                     <span class="text-emerald-400 font-bold" id="stat-month-max-temp">--°C</span>
                 </div>
                 <div class="text-xs text-gray-500 text-right mb-3" id="stat-month-max-time">--:--</div>
                 
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-gray-300">Min Temp:</span>
+                    <span class="text-gray-300">อุณหภูมิต่ำสุด:</span>
                     <span class="text-emerald-400 font-bold" id="stat-month-min-temp">--°C</span>
                 </div>
                 <div class="text-xs text-gray-500 text-right" id="stat-month-min-time">--:--</div>
@@ -105,15 +105,15 @@
 
             <!-- All Time Stats -->
             <div class="glass-panel p-5 rounded-2xl border-indigo-500/30">
-                <h3 class="text-sm text-indigo-400 font-semibold uppercase tracking-wider mb-3">All Time Record</h3>
+                <h3 class="text-sm text-indigo-400 font-semibold uppercase tracking-wider mb-3">สถิติทั้งหมด</h3>
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-gray-300">Highest:</span>
+                    <span class="text-gray-300">สูงสุด:</span>
                     <span class="text-indigo-400 font-bold" id="stat-all-max-temp">--°C</span>
                 </div>
                 <div class="text-xs text-gray-500 text-right mb-3" id="stat-all-max-time">--:--</div>
                 
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-gray-300">Lowest:</span>
+                    <span class="text-gray-300">ต่ำสุด:</span>
                     <span class="text-indigo-400 font-bold" id="stat-all-min-temp">--°C</span>
                 </div>
                 <div class="text-xs text-gray-500 text-right" id="stat-all-min-time">--:--</div>
@@ -125,9 +125,9 @@
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-semibold flex items-center gap-2">
                     <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
-                    Historical Data (Last 24 Hours)
+                    ข้อมูลย้อนหลัง (24 ชั่วโมงล่าสุด)
                 </h2>
-                <button onclick="fetchData()" class="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700/50" title="Refresh Data">
+                <button onclick="fetchData(); fetchCurrent(); fetchStats();" class="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors border border-gray-700/50" title="รีเฟรชข้อมูล">
                     <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                 </button>
             </div>
@@ -143,29 +143,47 @@
     <script>
         let envChart = null;
 
-        // ฟังก์ชันดึงข้อมูลจาก API
+        // ฟังก์ชันแปลงวันที่ให้เป็น DD/MM/YYYY
+        function formatDateThai(ts) {
+            if (!ts) return '--';
+            const parts = ts.split(' ');
+            const dateParts = parts[0].split('-');
+            if (dateParts.length === 3) {
+                return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}` + (parts[1] ? ` ${parts[1]}` : '');
+            }
+            return ts;
+        }
+
+        // ฟังก์ชันดึงข้อมูลจาก API สำหรับกราฟ
         async function fetchData() {
             try {
-                // ดึงข้อมูลผ่าน Flask API
                 const response = await fetch('/api/data');
                 const data = await response.json();
-                
-                if (data.length > 0) {
-                    const latest = data[data.length - 1];
-                    
-                    // อัปเดตตัวเลขล่าสุด
-                    document.getElementById('current-temp').innerHTML = latest.temperature.toFixed(1) + ' <span class="text-2xl text-blue-400">°C</span>';
-                    document.getElementById('current-humid').innerHTML = latest.humidity.toFixed(1) + ' <span class="text-2xl text-emerald-400">%</span>';
-                    
-                    // อัปเดตเวลาล่าสุด
-                    const timeStr = "Updated: " + latest.timestamp;
-                    document.getElementById('temp-time').innerText = timeStr;
-                    document.getElementById('humid-time').innerText = timeStr;
-                }
-
                 updateChart(data);
             } catch (error) {
                 console.error("Error fetching data:", error);
+            }
+        }
+
+        // ฟังก์ชันดึงข้อมูลปัจจุบัน (เฉลี่ย 10 นาที)
+        async function fetchCurrent() {
+            try {
+                const response = await fetch('/api/current');
+                const latest = await response.json();
+                
+                if (latest.temperature !== null) {
+                    document.getElementById('current-temp').innerHTML = latest.temperature.toFixed(1) + ' <span class="text-2xl text-blue-400">°C</span>';
+                    document.getElementById('current-humid').innerHTML = latest.humidity.toFixed(1) + ' <span class="text-2xl text-emerald-400">%</span>';
+                    
+                    const timeStr = "อัปเดต: " + formatDateThai(latest.timestamp);
+                    document.getElementById('temp-time').innerText = timeStr;
+                    document.getElementById('humid-time').innerText = timeStr;
+                } else {
+                    document.getElementById('temp-time').innerText = "รอข้อมูล...";
+                    document.getElementById('humid-time').innerText = "รอข้อมูล...";
+                }
+            } catch (error) {
+                console.error("Error fetching current data:", error);
             }
         }
 
@@ -176,33 +194,32 @@
                 const stats = await response.json();
                 
                 const formatTime = (ts) => ts ? ts.split(' ')[1].substring(0, 5) : '--:--';
-                const formatDate = (ts) => ts ? ts : '--';
 
                 if(stats.today && stats.today.max) {
                     document.getElementById('stat-today-max-temp').innerText = stats.today.max.temp.toFixed(1) + '°C';
-                    document.getElementById('stat-today-max-time').innerText = 'at ' + formatTime(stats.today.max.time);
+                    document.getElementById('stat-today-max-time').innerText = 'เวลา ' + formatTime(stats.today.max.time);
                 }
                 if(stats.today && stats.today.min) {
                     document.getElementById('stat-today-min-temp').innerText = stats.today.min.temp.toFixed(1) + '°C';
-                    document.getElementById('stat-today-min-time').innerText = 'at ' + formatTime(stats.today.min.time);
+                    document.getElementById('stat-today-min-time').innerText = 'เวลา ' + formatTime(stats.today.min.time);
                 }
                 
                 if(stats.month && stats.month.max) {
                     document.getElementById('stat-month-max-temp').innerText = stats.month.max.temp.toFixed(1) + '°C';
-                    document.getElementById('stat-month-max-time').innerText = formatDate(stats.month.max.time);
+                    document.getElementById('stat-month-max-time').innerText = formatDateThai(stats.month.max.time);
                 }
                 if(stats.month && stats.month.min) {
                     document.getElementById('stat-month-min-temp').innerText = stats.month.min.temp.toFixed(1) + '°C';
-                    document.getElementById('stat-month-min-time').innerText = formatDate(stats.month.min.time);
+                    document.getElementById('stat-month-min-time').innerText = formatDateThai(stats.month.min.time);
                 }
                 
                 if(stats.all_time && stats.all_time.max) {
                     document.getElementById('stat-all-max-temp').innerText = stats.all_time.max.temp.toFixed(1) + '°C';
-                    document.getElementById('stat-all-max-time').innerText = formatDate(stats.all_time.max.time);
+                    document.getElementById('stat-all-max-time').innerText = formatDateThai(stats.all_time.max.time);
                 }
                 if(stats.all_time && stats.all_time.min) {
                     document.getElementById('stat-all-min-temp').innerText = stats.all_time.min.temp.toFixed(1) + '°C';
-                    document.getElementById('stat-all-min-time').innerText = formatDate(stats.all_time.min.time);
+                    document.getElementById('stat-all-min-time').innerText = formatDateThai(stats.all_time.min.time);
                 }
             } catch (error) {
                 console.error("Error fetching stats:", error);
@@ -244,7 +261,7 @@
                         labels: labels,
                         datasets: [
                             {
-                                label: 'Temperature (°C)',
+                                label: 'อุณหภูมิ (°C)',
                                 data: temps,
                                 borderColor: '#60A5FA', // blue-400
                                 backgroundColor: 'rgba(96, 165, 250, 0.1)',
@@ -259,7 +276,7 @@
                                 yAxisID: 'y'
                             },
                             {
-                                label: 'Humidity (%)',
+                                label: 'ความชื้น (%)',
                                 data: humids,
                                 borderColor: '#34D399', // emerald-400
                                 backgroundColor: 'rgba(52, 211, 153, 0.05)',
@@ -317,7 +334,7 @@
                                 position: 'right',
                                 title: {
                                     display: true,
-                                    text: 'Temperature (°C)',
+                                    text: 'อุณหภูมิ (°C)',
                                     color: '#60A5FA'
                                 },
                                 grid: {
@@ -330,7 +347,7 @@
                                 position: 'left',
                                 title: {
                                     display: true,
-                                    text: 'Humidity (%)',
+                                    text: 'ความชื้น (%)',
                                     color: '#34D399'
                                 },
                                 grid: {
@@ -346,11 +363,13 @@
 
         // ดึงข้อมูลครั้งแรกทันที
         fetchData();
+        fetchCurrent();
         fetchStats();
         
         // ตั้งเวลาดึงข้อมูลใหม่อัตโนมัติทุกๆ 60 วินาที
         setInterval(() => {
             fetchData();
+            fetchCurrent();
             fetchStats();
         }, 60000);
     </script>
